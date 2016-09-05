@@ -20,6 +20,10 @@
       "chalk",
       "diorite"
     ],
+    "messageKeys": [
+      "serverAddress",
+      "serverSecret"
+    ],
     "watchapp": {
       "watchface": false
     },
