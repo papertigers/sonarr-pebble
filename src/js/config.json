@@ -1,0 +1,43 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Sonarr Configuration"
+  },
+  {
+    "type": "text",
+    "defaultValue": "Configure your servers location and secret. <br> NOTE: You must be running the server software found at <a href=\"https://github.com/papertigers/sonarr-pebble-timeline\">https://github.com/papertigers/sonarr-pebble-timeline</a>  in order to use this app on your watch."
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Server"
+      },
+      {
+        "type": "input",
+        "messageKey": "serverAddress",
+        "label": "Server URL",
+        "defaultValue": "",
+        "attributes": {
+          "placeholder": "eg: https://sonarr.tv",
+          "type": "url"
+        }
+      },
+      {
+        "type": "input",
+        "messageKey": "serverSecret",
+        "label": "Server Secret",
+        "defaultValue": "",
+        "attributes": {
+          "placeholder": "super-secret",
+          "type": "secret"
+        }
+      }
+    ]
+  },
+  {
+  "type": "submit",
+  "defaultValue": "Save"
+  }
+]
