@@ -1,6 +1,8 @@
 #include <pebble.h>
 #include "helpers.h"
 
+static const char APPNAME[] = "Transponder";
+
 static Window *s_main_window;
 static TextLayer *s_logo_text, *s_info_text;
 static char server_url[256];
@@ -11,13 +13,17 @@ static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  // Layout logo text
+  // Layout logo and info text
   s_logo_text = init_text_layer(GRect(0, 0, bounds.size.w, 35)
   , GColorWhite, GColorVividCerulean, FONT_KEY_GOTHIC_24_BOLD, GTextAlignmentCenter);
-  text_layer_set_text(s_logo_text, "Transponder");
+  text_layer_set_text(s_logo_text, APPNAME);
+
+  s_info_text = init_text_layer(GRect(5, 35, bounds.size.w - 5, bounds.size.h - 35)
+  , GColorBlack, GColorWhite, FONT_KEY_GOTHIC_18, GTextAlignmentLeft);
 
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_logo_text));
+  layer_add_child(window_layer, text_layer_get_layer(s_info_text));
 }
 
 static void main_window_unload(Window *window) {
@@ -25,9 +31,6 @@ static void main_window_unload(Window *window) {
 }
 
 static void prv_user_setup() {
-  Layer *window_layer = window_get_root_layer(s_main_window);
-  GRect bounds = layer_get_bounds(window_layer);
-
   /*
    * If we are missing the server url and server secret we will instruct
    * the user to open the configuration on their phone.
@@ -35,15 +38,10 @@ static void prv_user_setup() {
    if (persist_read_string(MESSAGE_KEY_SERVERURL, server_url, 256) == E_DOES_NOT_EXIST ||
    persist_read_string(MESSAGE_KEY_SERVERSECRET, server_secret, 256) == E_DOES_NOT_EXIST) {
      APP_LOG(APP_LOG_LEVEL_DEBUG, "Server url or key not in Storage");
-     s_info_text = init_text_layer(GRect(5, 35, bounds.size.w - 5, bounds.size.h - 35)
-     , GColorBlack, GColorWhite, FONT_KEY_GOTHIC_18, GTextAlignmentLeft);
      text_layer_set_text(s_info_text, "To continue setup please go to the configuration"
                                       " page inside of the pebble app on your phone.");
-     layer_add_child(window_layer, text_layer_get_layer(s_info_text));
    }
-
-   //Tell the user everythings already setup!
-   //TODO change s_info_text
+   //TODO Tell the user everythings already setup!
 }
 static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) {
   // Read color preferences
