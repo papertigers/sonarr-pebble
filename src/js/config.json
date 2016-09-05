@@ -16,7 +16,7 @@
       },
       {
         "type": "input",
-        "messageKey": "serverAddress",
+        "messageKey": "SERVERURL",
         "label": "Server URL",
         "defaultValue": "",
         "attributes": {
@@ -26,7 +26,7 @@
       },
       {
         "type": "input",
-        "messageKey": "serverSecret",
+        "messageKey": "SERVERSECRET",
         "label": "Server Secret",
         "defaultValue": "",
         "attributes": {
@@ -35,6 +35,11 @@
         }
       }
     ]
+  },
+  {
+    "type": "button",
+    "defaultValue": "Logout",
+    "description": "Stop receiving timeline pins from the server.  Has no action if the app is not linked to a server."
   },
   {
   "type": "submit",

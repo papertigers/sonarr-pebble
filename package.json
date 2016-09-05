@@ -21,15 +21,12 @@
       "diorite"
     ],
     "messageKeys": [
-      "serverAddress",
-      "serverSecret"
+      "SERVERURL",
+      "SERVERSECRET"
     ],
     "watchapp": {
       "watchface": false
     },
-    "messageKeys": [
-      "dummy"
-    ],
     "resources": {
       "media": []
     }
