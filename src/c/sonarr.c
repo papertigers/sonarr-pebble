@@ -5,8 +5,15 @@ static const char APPNAME[] = "Transponder";
 
 static Window *s_main_window;
 static TextLayer *s_logo_text, *s_info_text;
-static char server_url[256];
-static char server_secret[256];
+static char server_url[PERSIST_DATA_MAX_LENGTH];
+static char server_secret[PERSIST_DATA_MAX_LENGTH];
+
+//Make sure communicatoin from js is ready
+static bool s_js_ready;
+static AppTimer *s_jscomm_timer;
+bool comm_is_js_ready() {
+  return s_js_ready;
+}
 
 static void main_window_load(Window *window) {
   // Get information about the Window
@@ -30,20 +37,68 @@ static void main_window_unload(Window *window) {
 
 }
 
+//Declare some prototypes
+static void send_message();
+static void test_message();
+static void timout_timer_handler(void *context) {
+  // Retry
+  send_message();
+}
+
+static void send_message() {
+  //Make sure js comm is ready
+  if (!comm_is_js_ready()){
+    const int interval_ms = 1000;
+    s_jscomm_timer = app_timer_register(interval_ms, timout_timer_handler, NULL);
+    return;
+  }
+  test_message();
+}
+
 static void prv_user_setup() {
   /*
    * If we are missing the server url and server secret we will instruct
    * the user to open the configuration on their phone.
    */
-   if (persist_read_string(MESSAGE_KEY_SERVERURL, server_url, 256) == E_DOES_NOT_EXIST ||
-   persist_read_string(MESSAGE_KEY_SERVERSECRET, server_secret, 256) == E_DOES_NOT_EXIST) {
+   if (persist_read_string(MESSAGE_KEY_SERVERURL, server_url, sizeof(server_url)) == E_DOES_NOT_EXIST ||
+   persist_read_string(MESSAGE_KEY_SERVERSECRET, server_secret, sizeof(server_secret)) == E_DOES_NOT_EXIST) {
      APP_LOG(APP_LOG_LEVEL_DEBUG, "Server url or key not in Storage");
      text_layer_set_text(s_info_text, "To continue setup please go to the configuration"
                                       " page inside of the pebble app on your phone.");
    }
    //TODO Tell the user everythings already setup!
+   send_message();
 }
+
+static void test_message() {
+  //TESTING
+  // Declare the dictionary's iterator
+  DictionaryIterator *out_iter;
+
+  // Prepare the outbox buffer for this message
+  AppMessageResult result = app_message_outbox_begin(&out_iter);
+  if(result == APP_MSG_OK) {
+    // Add an item to ask for weather data
+    int value = 589;
+    dict_write_int(out_iter, MESSAGE_KEY_RequestData, &value, sizeof(int), true);
+
+    // Send this message
+    result = app_message_outbox_send();
+    if(result != APP_MSG_OK) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Error sending the outbox: %d", (int)result);
+    }
+  } else {
+    // The outbox cannot be used right now
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Error preparing the outbox: %d", (int)result);
+  }
+}
+
 static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) {
+  Tuple *ready_tuple = dict_find(iter, MESSAGE_KEY_JSREADY);
+  if(ready_tuple) {
+    // PebbleKit JS is ready! Safe to send messages
+    s_js_ready = true;
+  }
   // Read color preferences
   Tuple *serverUrl = dict_find(iter, MESSAGE_KEY_SERVERURL);
   if(serverUrl) {
@@ -82,6 +137,5 @@ int main() {
   prv_init();
   prv_user_setup();
   app_event_loop();
-
   prv_deinit();
 }

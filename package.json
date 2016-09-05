@@ -21,6 +21,8 @@
       "diorite"
     ],
     "messageKeys": [
+      "JSREADY",
+      "RequestData",
       "SERVERURL",
       "SERVERSECRET"
     ],
