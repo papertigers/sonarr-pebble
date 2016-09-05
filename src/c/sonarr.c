@@ -7,6 +7,7 @@ static Window *s_main_window;
 static TextLayer *s_logo_text, *s_info_text;
 static char server_url[PERSIST_DATA_MAX_LENGTH];
 static char server_secret[PERSIST_DATA_MAX_LENGTH];
+static bool timeline_setup = false;
 
 //Make sure communicatoin from js is ready
 static bool s_js_ready;
@@ -48,14 +49,24 @@ static void timout_timer_handler(void *context) {
 static void send_message() {
   //Make sure js comm is ready
   if (!comm_is_js_ready()){
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "c <=> js comm not open yet.");
     const int interval_ms = 1000;
     s_jscomm_timer = app_timer_register(interval_ms, timout_timer_handler, NULL);
     return;
   }
+  if (s_jscomm_timer)
+    s_jscomm_timer = NULL;
   test_message();
 }
 
 static void prv_user_setup() {
+  if (persist_read_bool(MESSAGE_KEY_ISSETUP)) {
+    //The app is already setup update the info text and return
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Everything is setup.  Receiving pins");
+    text_layer_set_text(s_info_text, "Your watch should now be receiving timeline pins from sonarr."
+                                     " To stop receiving pins open the configuration page.");
+    return;
+  }
   /*
    * If we are missing the server url and server secret we will instruct
    * the user to open the configuration on their phone.
@@ -66,8 +77,6 @@ static void prv_user_setup() {
      text_layer_set_text(s_info_text, "To continue setup please go to the configuration"
                                       " page inside of the pebble app on your phone.");
    }
-   //TODO Tell the user everythings already setup!
-   send_message();
 }
 
 static void test_message() {
@@ -99,11 +108,23 @@ static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) 
     // PebbleKit JS is ready! Safe to send messages
     s_js_ready = true;
   }
-  // Read color preferences
+  // Read user preferences
   Tuple *serverUrl = dict_find(iter, MESSAGE_KEY_SERVERURL);
   if(serverUrl) {
     strcpy(server_url, serverUrl->value->cstring);
+    persist_write_string(MESSAGE_KEY_SERVERURL, server_url);
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Server url now set to %s", server_url);
+  }
+  Tuple *serverSecret = dict_find(iter, MESSAGE_KEY_SERVERSECRET);
+  if(serverSecret) {
+    strcpy(server_secret, serverSecret->value->cstring);
+    persist_write_string(MESSAGE_KEY_SERVERSECRET, server_secret);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Server secret now set to %s", server_secret);
+  }
+
+  //if we are not already setup attempt to register
+  if (!persist_read_bool(MESSAGE_KEY_ISSETUP)) {
+    //register
   }
 }
 
