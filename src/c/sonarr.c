@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "sonarr.h"
 #include "helpers.h"
 
 static const char APPNAME[] = "Transponder";
@@ -10,7 +11,7 @@ static char server_secret[PERSIST_DATA_MAX_LENGTH];
 static bool timeline_setup = false;
 
 //Make sure communicatoin from js is ready
-static bool s_js_ready;
+bool s_js_ready;
 static AppTimer *s_jscomm_timer;
 bool comm_is_js_ready() {
   return s_js_ready;
@@ -39,14 +40,15 @@ static void main_window_unload(Window *window) {
 }
 
 //Declare some prototypes
-static void send_message();
-static void test_message();
+static void register_with_server();
+static void server_register();
 static void timout_timer_handler(void *context) {
   // Retry
-  send_message();
+  register_with_server();
 }
 
-static void send_message() {
+static void register_with_server() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "register_with_server called");
   //Make sure js comm is ready
   if (!comm_is_js_ready()){
     APP_LOG(APP_LOG_LEVEL_DEBUG, "c <=> js comm not open yet.");
@@ -56,7 +58,8 @@ static void send_message() {
   }
   if (s_jscomm_timer)
     s_jscomm_timer = NULL;
-  test_message();
+  //Attempt to ask js to register on our behalf
+  server_register();
 }
 
 static void prv_user_setup() {
@@ -67,19 +70,12 @@ static void prv_user_setup() {
                                      " To stop receiving pins open the configuration page.");
     return;
   }
-  /*
-   * If we are missing the server url and server secret we will instruct
-   * the user to open the configuration on their phone.
-   */
-   if (persist_read_string(MESSAGE_KEY_SERVERURL, server_url, sizeof(server_url)) == E_DOES_NOT_EXIST ||
-   persist_read_string(MESSAGE_KEY_SERVERSECRET, server_secret, sizeof(server_secret)) == E_DOES_NOT_EXIST) {
-     APP_LOG(APP_LOG_LEVEL_DEBUG, "Server url or key not in Storage");
-     text_layer_set_text(s_info_text, "To continue setup please go to the configuration"
-                                      " page inside of the pebble app on your phone.");
-   }
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Config not complete OR we failed to talk to server");
+  text_layer_set_text(s_info_text, "To continue setup please go to the configuration"
+                                   " page inside of the pebble app on your phone.");
 }
 
-static void test_message() {
+static void server_register() {
   //TESTING
   // Declare the dictionary's iterator
   DictionaryIterator *out_iter;
@@ -89,7 +85,9 @@ static void test_message() {
   if(result == APP_MSG_OK) {
     // Add an item to ask for weather data
     int value = 589;
-    dict_write_int(out_iter, MESSAGE_KEY_RequestData, &value, sizeof(int), true);
+    dict_write_int(out_iter, MESSAGE_KEY_REQUESTTIMELINE, &value, sizeof(int), true);
+    dict_write_cstring(out_iter, MESSAGE_KEY_SERVERURL, server_url);
+    dict_write_cstring(out_iter, MESSAGE_KEY_SERVERSECRET, server_secret);
 
     // Send this message
     result = app_message_outbox_send();
@@ -102,11 +100,20 @@ static void test_message() {
   }
 }
 
+//TODO clean up and make a case statement?
 static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) {
   Tuple *ready_tuple = dict_find(iter, MESSAGE_KEY_JSREADY);
   if(ready_tuple) {
     // PebbleKit JS is ready! Safe to send messages
     s_js_ready = true;
+    return;
+  }
+  Tuple *setup_tuple = dict_find(iter, MESSAGE_KEY_ISSETUP);
+  if(setup_tuple) {
+    //Received this message because server registration was a great success
+    persist_write_bool(MESSAGE_KEY_ISSETUP, true);
+    prv_user_setup();
+    return;
   }
   // Read user preferences
   Tuple *serverUrl = dict_find(iter, MESSAGE_KEY_SERVERURL);
@@ -123,12 +130,16 @@ static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) 
   }
 
   //if we are not already setup attempt to register
-  if (!persist_read_bool(MESSAGE_KEY_ISSETUP)) {
+  if(!persist_read_bool(MESSAGE_KEY_ISSETUP)) {
     //register
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling register");
+    register_with_server();
   }
 }
 
 static void prv_init() {
+  //XXX for TESTING
+  persist_write_bool(MESSAGE_KEY_ISSETUP, false);
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 

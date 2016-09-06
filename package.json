@@ -23,7 +23,7 @@
     "messageKeys": [
       "JSREADY",
       "ISSETUP",
-      "RequestData",
+      "REQUESTTIMELINE",
       "SERVERURL",
       "SERVERSECRET"
     ],
